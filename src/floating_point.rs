@@ -1,5 +1,13 @@
 use core::intrinsics;
 
+pub trait SignedIsqrt: Sized {
+    fn checked_isqrt(self) -> Option<Self>;
+    fn isqrt(self) -> Self;
+}
+pub trait UnsignedIsqrt {
+    fn isqrt(self) -> Self;
+}
+
 impl SignedIsqrt for i8 {
     fn checked_isqrt(self) -> Option<Self> {
         (self >= 0).then(|| (self as f32).sqrt() as Self)
@@ -56,7 +64,7 @@ impl UnsignedIsqrt for u32 {
 
 impl SignedIsqrt for i64 {
     // Uses technique from
-    // https://optimi.wordpress.com/2010/12/02/how-to-compute-64-bit-integer-square-roots-very-quickly/
+    // https://web.archive.org/web/20220118185505/https://www.codecodex.com/wiki/Calculate_an_integer_square_root#Java
     fn checked_isqrt(self) -> Option<Self> {
         (self >= 0).then(|| {
             // `self as u64 as f64` is faster than `self as f64`.
@@ -78,7 +86,7 @@ impl SignedIsqrt for i64 {
 
 impl UnsignedIsqrt for u64 {
     // Uses technique from
-    // https://optimi.wordpress.com/2010/12/02/how-to-compute-64-bit-integer-square-roots-very-quickly/
+    // https://web.archive.org/web/20220118185505/https://www.codecodex.com/wiki/Calculate_an_integer_square_root#Java
     fn isqrt(self) -> Self {
         let mut result = (self as f64).sqrt() as Self;
         if result
@@ -93,77 +101,46 @@ impl UnsignedIsqrt for u64 {
     }
 }
 
-pub trait SignedIsqrt: Sized {
-    fn checked_isqrt(self) -> Option<Self>;
-    fn isqrt(self) -> Self;
-}
-
-macro_rules! signed_isqrt {
-    ($type:ty, $unsigned_type:ty) => {
-        impl SignedIsqrt for $type {
-            #[inline]
-            fn checked_isqrt(self) -> Option<Self> {
-                if self < 0 {
-                    None
-                } else {
-                    Some((self as $unsigned_type).isqrt() as $type)
-                }
-            }
-
-            #[inline]
-            fn isqrt(self) -> Self {
-                self.checked_isqrt()
-                    .expect("argument of integer square root must be non-negative")
-            }
+impl SignedIsqrt for i128 {
+    #[inline]
+    fn checked_isqrt(self) -> Option<Self> {
+        if self < 0 {
+            None
+        } else {
+            Some((self as u128).isqrt() as Self)
         }
-    };
+    }
+
+    #[inline]
+    fn isqrt(self) -> Self {
+        self.checked_isqrt()
+            .expect("argument of integer square root must be non-negative")
+    }
 }
 
-signed_isqrt!(i128, u128);
-
-pub trait UnsignedIsqrt {
-    fn isqrt(self) -> Self;
-}
-
-macro_rules! unsigned_isqrt {
-    ($unsigned_type:ty) => {
-        impl UnsignedIsqrt for $unsigned_type {
-            #[inline]
-            fn isqrt(self) -> Self {
-                if self < 2 {
-                    return self;
+impl UnsignedIsqrt for u128 {
+    // Uses technique from
+    // https://web.archive.org/web/20220118185505/https://www.codecodex.com/wiki/Calculate_an_integer_square_root#Java
+    fn isqrt(self) -> Self {
+        let leading_zeros = self.leading_zeros();
+        let result = if leading_zeros >= 64 {
+            (self as u64).isqrt() as Self
+        } else {
+            let mut bit_index = (65 - leading_zeros) & 0b1111110;
+            let mut result = ((self >> bit_index) as u64).isqrt() as Self;
+            bit_index >>= 1;
+            result <<= bit_index;
+            let mut bit = 1 << bit_index;
+            while bit > 0 {
+                bit >>= 1;
+                let result_high = result | bit;
+                if result_high * result_high <= self {
+                    result = result_high;
                 }
-
-                // The algorithm is based on the one presented in
-                // <https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Binary_numeral_system_(base_2)>
-                // which cites as source the following C code:
-                // <https://web.archive.org/web/20120306040058/http://medialab.freaknet.org/martin/src/sqrt/sqrt.c>.
-
-                let mut op = self;
-                let mut res = 0;
-                let mut one = 1 << (self.ilog2() & !1);
-
-                while one != 0 {
-                    if op >= res + one {
-                        op -= res + one;
-                        res = (res >> 1) + one;
-                    } else {
-                        res >>= 1;
-                    }
-                    one >>= 2;
-                }
-
-                // SAFETY: the result is positive and fits in an integer with half as many bits.
-                // Inform the optimizer about it.
-                unsafe {
-                    intrinsics::assume(0 < res);
-                    intrinsics::assume(res < 1 << (Self::BITS / 2));
-                }
-
-                res
             }
-        }
-    };
-}
+            result
+        };
 
-unsigned_isqrt!(u128);
+        result
+    }
+}
