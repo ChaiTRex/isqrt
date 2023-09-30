@@ -36,8 +36,13 @@ macro_rules! tests {
                         // Check the minimum value.
                         isqrt_consistency_check($SignedT::MIN);
 
-                        // Check the square roots of the first and last 128 nonnegative values.
-                        for n in (0..=127).chain($SignedT::MAX - 127..=$SignedT::MAX) {
+                        // Check the square roots of the first and last 128 nonnegative values, of the powers of two minus one,
+                        // and of the powers of two.
+                        for n in (0..=127)
+                            .chain($SignedT::MAX - 127..=$SignedT::MAX)
+                            .chain((0..$SignedT::BITS - 1).map(|exponent| (1 << exponent) - 1))
+                            .chain((0..$SignedT::BITS - 1).map(|exponent| 1 << exponent))
+                        {
                             isqrt_consistency_check(n);
                             let sqrt_n = n.isqrt();
 
@@ -50,26 +55,6 @@ macro_rules! tests {
                                 (sqrt_n + 1).checked_mul(sqrt_n + 1).map(|higher_than_n| n < higher_than_n).unwrap_or(true),
                                 "The integer square root of {n} should be higher than {sqrt_n} (the current return value of `{n}.isqrt()`)."
                             );
-                        }
-
-                        // Check the square roots of all powers of four.
-                        for exponent in 0..($SignedT::BITS - 1) / 2 {
-                            let n: $SignedT = 1 << (exponent << 1);
-                            let sqrt_n = 1 << exponent;
-
-                            assert_eq!(
-                                n.isqrt(),
-                                sqrt_n,
-                                "`4.pow({exponent}).isqrt()` should be `2.pow({exponent})`."
-                            );
-                            isqrt_consistency_check(n);
-
-                            assert_eq!(
-                                (n - 1).isqrt(),
-                                sqrt_n - 1,
-                                "`(4.pow({exponent}) - 1).isqrt()` should be `2.pow({exponent}) - 1`."
-                            );
-                            isqrt_consistency_check(n - 1);
                         }
                     }
 
@@ -171,8 +156,13 @@ macro_rules! tests {
 
                     #[test]
                     fn test_isqrt() {
-                        // Check the square roots of the first and last 128 nonnegative values.
-                        for n in (0..=127).chain($UnsignedT::MAX - 127..=$UnsignedT::MAX) {
+                        // Check the square roots of the first and last 128 nonnegative values, of the powers of two minus one,
+                        // and of the powers of two.
+                        for n in (0..=127)
+                            .chain($UnsignedT::MAX - 127..=$UnsignedT::MAX)
+                            .chain((0..$UnsignedT::BITS).map(|exponent| (1 << exponent) - 1))
+                            .chain((0..$UnsignedT::BITS).map(|exponent| 1 << exponent))
+                        {
                             let sqrt_n = n.isqrt();
 
                             assert!(
@@ -183,24 +173,6 @@ macro_rules! tests {
                             assert!(
                                 (sqrt_n + 1).checked_mul(sqrt_n + 1).map(|higher_than_n| n < higher_than_n).unwrap_or(true),
                                 "The integer square root of {n} should be higher than {sqrt_n} (the current return value of `{n}.isqrt()`)."
-                            );
-                        }
-
-                        // Check the square roots of all powers of four.
-                        for exponent in 0..$UnsignedT::BITS / 2 {
-                            let n: $UnsignedT = 1 << (exponent << 1);
-                            let sqrt_n = 1 << exponent;
-
-                            assert_eq!(
-                                n.isqrt(),
-                                sqrt_n,
-                                "`4.pow({exponent}).isqrt()` should be `2.pow({exponent})`."
-                            );
-
-                            assert_eq!(
-                                (n - 1).isqrt(),
-                                sqrt_n - 1,
-                                "`(4.pow({exponent}) - 1).isqrt()` should be `2.pow({exponent}) - 1`."
                             );
                         }
                     }
