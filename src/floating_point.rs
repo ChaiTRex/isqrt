@@ -75,7 +75,7 @@ impl UnsignedIsqrt for u16 {
         // SAFETY: the result fits in an integer with half as many bits.
         // Inform the optimizer about it.
         unsafe {
-            intrinsics::assume(result < 1 << 8);
+            intrinsics::assume(result <= u8::MAX as Self);
         }
 
         result
@@ -112,7 +112,7 @@ impl UnsignedIsqrt for u32 {
         // SAFETY: the result fits in an integer with half as many bits.
         // Inform the optimizer about it.
         unsafe {
-            intrinsics::assume(result < 1 << 16);
+            intrinsics::assume(result <= u16::MAX as Self);
         }
 
         result
@@ -129,6 +129,7 @@ impl SignedIsqrt for i64 {
             if result * result > self {
                 result -= 1;
             }
+
             // SAFETY: the result is nonnegative and less than or equal to `i64::MAX.isqrt()`.
             // Inform the optimizer about it.
             unsafe {
@@ -163,7 +164,7 @@ impl UnsignedIsqrt for u64 {
         // SAFETY: the result fits in an integer with half as many bits.
         // Inform the optimizer about it.
         unsafe {
-            intrinsics::assume(result < 1 << 32);
+            intrinsics::assume(result <= u32::MAX as Self);
         }
 
         result
@@ -199,7 +200,7 @@ impl SignedIsqrt for i128 {
 impl UnsignedIsqrt for u128 {
     fn isqrt(mut self) -> Self {
         // Performs a Karatsuba square root.
-        // Paper at https://inria.hal.science/inria-00072854/en/
+        // https://web.archive.org/web/20230511212802/https://inria.hal.science/inria-00072854v1/file/RR-3805.pdf
 
         let leading_zeros = self.leading_zeros();
         let result = if leading_zeros >= 64 {
@@ -207,7 +208,6 @@ impl UnsignedIsqrt for u128 {
         } else {
             // Either the most-significant bit or its neighbor must be a one, so we shift left to make that happen.
             let precondition_shift = leading_zeros & 0b111110;
-
             self <<= precondition_shift;
 
             let hi = (self >> 64) as u64;
@@ -232,7 +232,7 @@ impl UnsignedIsqrt for u128 {
         // SAFETY: the result fits in an integer with half as many bits.
         // Inform the optimizer about it.
         unsafe {
-            intrinsics::assume(result < 1 << 64);
+            intrinsics::assume(result <= u64::MAX as Self);
         }
 
         result
