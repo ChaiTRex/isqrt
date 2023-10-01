@@ -13,7 +13,7 @@ impl SignedIsqrt for i8 {
         (self >= 0).then(|| {
             let result = (self as f32).sqrt() as Self;
 
-            // SAFETY: the result is nonnegative and less than or equal to `i64::MAX.isqrt()`.
+            // SAFETY: the result is nonnegative and less than or equal to `i8::MAX.isqrt()`.
             // Inform the optimizer about it.
             unsafe {
                 intrinsics::assume(0 <= result);
@@ -198,34 +198,35 @@ impl SignedIsqrt for i128 {
 
 impl UnsignedIsqrt for u128 {
     fn isqrt(mut self) -> Self {
-        // The algorithm is based on the one presented in
-        // <https://en.wikipedia.org/wiki/Methods_of_computing_square_roots#Binary_numeral_system_(base_2)>
-        // which cites as source the following C code:
-        // <https://web.archive.org/web/20120306040058/http://medialab.freaknet.org/martin/src/sqrt/sqrt.c>.
+        // Performs a Karatsuba square root.
+        // Paper at https://inria.hal.science/inria-00072854/en/
 
         let leading_zeros = self.leading_zeros();
         let result = if leading_zeros >= 64 {
             (self as u64).isqrt() as Self
         } else {
-            let even_bit_index = (65 - leading_zeros) & 0b1111110;
+            // Either the most-significant bit or its neighbor must be a one, so we shift left to make that happen.
+            let precondition_shift = leading_zeros & 0b111110;
 
-            let mut result = ((self >> even_bit_index) as u64).isqrt() as Self;
-            self -= (result * result) << even_bit_index;
-            result <<= even_bit_index;
-            let mut even_bit = 1 << (even_bit_index - 2);
+            self <<= precondition_shift;
 
-            while even_bit != 0 {
-                let result_high = result | even_bit;
-                if self >= result_high {
-                    self -= result_high;
-                    result = (result >> 1) | even_bit;
-                } else {
-                    result >>= 1;
-                }
-                even_bit >>= 2;
+            let hi = (self >> 64) as u64;
+            let lo = self as u64 as Self;
+
+            let s_prime = hi.isqrt();
+            let r_prime = hi - s_prime * s_prime;
+
+            let numerator = ((r_prime as Self) << 32) | (lo >> 32);
+            let denominator = (s_prime as Self) << 1;
+
+            let q = numerator / denominator;
+            let u = numerator % denominator;
+
+            let mut s = (s_prime << 32) as Self + q;
+            if (u << 32) | (lo as u32 as Self) < q * q {
+                s -= 1;
             }
-
-            result
+            s >> (precondition_shift >> 1)
         };
 
         // SAFETY: the result fits in an integer with half as many bits.
