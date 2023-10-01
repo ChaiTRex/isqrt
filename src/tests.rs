@@ -268,4 +268,5 @@ macro_rules! tests {
 }
 
 tests!(floating_point; i8 u8, i16 u16, i32 u32, i64 u64, i128 u128);
+tests!(karatsuba; i8 u8, i16 u16, i32 u32, i64 u64, i128 u128);
 tests!(original; i8 u8, i16 u16, i32 u32, i64 u64, i128 u128);

@@ -38,6 +38,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
                 b.iter(|| black_box(black_box($signed_randoms.next().unwrap()).checked_isqrt()))
             });
 
+            $c.bench_function(concat!("karatsuba_", stringify!($signed_type)), |b| {
+                use isqrt::karatsuba::SignedIsqrt;
+
+                b.iter(|| black_box(black_box($signed_randoms.next().unwrap()).checked_isqrt()))
+            });
+
             $c.bench_function(concat!("original_", stringify!($unsigned_type)), |b| {
                 use isqrt::original::UnsignedIsqrt;
 
@@ -46,6 +52,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 
             $c.bench_function(concat!("floating_", stringify!($unsigned_type)), |b| {
                 use isqrt::floating_point::UnsignedIsqrt;
+
+                b.iter(|| black_box(black_box($unsigned_randoms.next().unwrap()).isqrt()))
+            });
+
+            $c.bench_function(concat!("karatsuba_", stringify!($unsigned_type)), |b| {
+                use isqrt::karatsuba::UnsignedIsqrt;
 
                 b.iter(|| black_box(black_box($unsigned_randoms.next().unwrap()).isqrt()))
             });
