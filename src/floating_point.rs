@@ -121,8 +121,48 @@ impl UnsignedIsqrt for u32 {
 
 impl SignedIsqrt for i64 {
     fn checked_isqrt(self) -> Option<Self> {
+        // This proof of correctness is a corrected version of the flawed proof at
+        // https://web.archive.org/web/20220118185505/https://www.codecodex.com/wiki/Calculate_an_integer_square_root#Java
+        //
+        // One way to solve this problem is to find the perfect square at or just below the input and to use its square
+        // root.
+        //
+        // `f64` has a 53-bit mantissa. Each input above 2^53 will convert to a representative `f64`. Inputs that
+        // correspond to the same representative form a consecutive range of inputs.
+        //
+        // If there is no perfect square in that range of inputs, all inputs in the range will be above the desired
+        // perfect square, and so flooring the representative's square root will give us the proper result.
+        //
+        // If there is a perfect square in that range of inputs and the representative is at or above the perfect
+        // square, the floor of the representative's square root will be correct for all inputs that are at or above
+        // the perfect square. The floor of the representative's square root minus one will be correct for the
+        // remaining inputs.
+        //
+        // If there is a perfect square in that range of inputs and the representative is below the perfect square, the
+        // floor of the representative's square root plus one will be correct for all inputs that are at or above the
+        // perfect square. The floor of the representative's square root will be correct for the remaining inputs.
+        //
+        // There cannot be more than one perfect square in a range of inputs because the distance between nearby
+        // perfect squares is much larger than the number of inputs in a range. The largest ranges of inputs appear
+        // near `u64::MAX`, where the ranges contain loosely 2^(64 - 53) = 2^11 inputs. The smallest distance between
+        // perfect squares after 2^53 is loosely (2^26 + 1)^2 - (2^26)^2 = 2^27 - 1. Since the smallest distance between
+        // perfect squares after inaccuracies appear is always much larger than the size of the largest range of
+        // inputs, there cannot be more than one perfect square in a range of inputs.
+        //
+        // Thus, the correct output will be the floor of the representative's square root plus -1, 0, or 1.
+
         (self >= 0).then(|| {
-            let result = (self as u64).isqrt() as i64;
+            let result = {
+                let result = (self as u64 as f64).sqrt() as u64;
+                let result_squared = result * result;
+                if (self as u64) < result_squared {
+                    result - 1
+                } else if (self as u64) < result_squared + (result << 1) + 1 {
+                    result
+                } else {
+                    result + 1
+                }
+            } as i64;
 
             // SAFETY: the result is nonnegative and less than or equal to `i64::MAX.isqrt()`.
             // Inform the optimizer about it.
@@ -167,26 +207,28 @@ impl UnsignedIsqrt for u64 {
         //
         // There cannot be more than one perfect square in a range of inputs because the distance between nearby
         // perfect squares is much larger than the number of inputs in a range. The largest ranges of inputs appear
-        // near `u64::MAX`, where the ranges contain about 2^(64 - 53) = 2^11 inputs. The smallest distance between
-        // perfect squares after 2^53 is about (2^27 + 1)^2 - (2^27)^2 = 2^28 - 1. Since the smallest distance between
+        // near `u64::MAX`, where the ranges contain loosely 2^(64 - 53) = 2^11 inputs. The smallest distance between
+        // perfect squares after 2^53 is loosely (2^26 + 1)^2 - (2^26)^2 = 2^27 - 1. Since the smallest distance between
         // perfect squares after inaccuracies appear is always much larger than the size of the largest range of
         // inputs, there cannot be more than one perfect square in a range of inputs.
         //
         // Thus, the correct output will be the floor of the representative's square root plus -1, 0, or 1.
 
-        let result = (self as f64).sqrt() as Self;
-        let result = match result.checked_mul(result) {
-            None => result - 1,
-            Some(result_squared) if self < result_squared => result - 1,
-            _ => {
-                let result_plus_one = result + 1;
-                match result_plus_one.checked_mul(result_plus_one) {
-                    Some(result_plus_one_squared) if result_plus_one_squared <= self => {
-                        result_plus_one
-                    }
-                    _ => result,
-                }
+        // Avoid overflows when getting the result squared or the result plus one squared.
+        let result = if self < ((1 << 32) - 2) * ((1 << 32) - 2) {
+            let result = (self as f64).sqrt() as Self;
+            let result_squared = result * result;
+            if self < result_squared {
+                result - 1
+            } else if self < result_squared + (result << 1) + 1 {
+                result
+            } else {
+                result + 1
             }
+        } else if self < ((1 << 32) - 1) * ((1 << 32) - 1) {
+            (1 << 32) - 2
+        } else {
+            (1 << 32) - 1
         };
 
         // SAFETY: the result fits in an integer with half as many bits.
