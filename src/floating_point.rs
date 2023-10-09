@@ -11,7 +11,10 @@ pub trait UnsignedIsqrt {
 impl SignedIsqrt for i8 {
     fn checked_isqrt(self) -> Option<Self> {
         (self >= 0).then(|| {
-            let result = (self as f32).sqrt() as Self;
+            let result = (self as f32).sqrt();
+            // SAFETY: Guaranteed to not be a NaN or an infinity and to, except for the fractional part, be in `i8`
+            // range.
+            let result = unsafe { result.to_int_unchecked::<i8>() };
 
             // SAFETY: the result is nonnegative and less than or equal to `i8::MAX.isqrt()`.
             // Inform the optimizer about it.
@@ -33,7 +36,9 @@ impl SignedIsqrt for i8 {
 
 impl UnsignedIsqrt for u8 {
     fn isqrt(self) -> Self {
-        let result = (self as f32).sqrt() as Self;
+        let result = (self as f32).sqrt();
+        // SAFETY: Guaranteed to not be a NaN or an infinity and to, except for the fractional part, be in `u8` range.
+        let result = unsafe { result.to_int_unchecked::<u8>() };
 
         // SAFETY: the result fits in an integer with half as many bits.
         // Inform the optimizer about it.
@@ -48,7 +53,10 @@ impl UnsignedIsqrt for u8 {
 impl SignedIsqrt for i16 {
     fn checked_isqrt(self) -> Option<Self> {
         (self >= 0).then(|| {
-            let result = (self as f32).sqrt() as Self;
+            let result = (self as f32).sqrt();
+            // SAFETY: Guaranteed to not be a NaN or an infinity and to, except for the fractional part, be in `i16`
+            // range.
+            let result = unsafe { result.to_int_unchecked::<i16>() };
 
             // SAFETY: the result is nonnegative and less than or equal to `i16::MAX.isqrt()`.
             // Inform the optimizer about it.
@@ -70,7 +78,9 @@ impl SignedIsqrt for i16 {
 
 impl UnsignedIsqrt for u16 {
     fn isqrt(self) -> Self {
-        let result = (self as f32).sqrt() as Self;
+        let result = (self as f32).sqrt();
+        // SAFETY: Guaranteed to not be a NaN or an infinity and to, except for the fractional part, be in `u16` range.
+        let result = unsafe { result.to_int_unchecked::<u16>() };
 
         // SAFETY: the result fits in an integer with half as many bits.
         // Inform the optimizer about it.
@@ -85,7 +95,10 @@ impl UnsignedIsqrt for u16 {
 impl SignedIsqrt for i32 {
     fn checked_isqrt(self) -> Option<Self> {
         (self >= 0).then(|| {
-            let result = (self as f64).sqrt() as Self;
+            let result = (self as f64).sqrt();
+            // SAFETY: Guaranteed to not be a NaN or an infinity and to, except for the fractional part, be in `i32`
+            // range.
+            let result = unsafe { result.to_int_unchecked::<i32>() };
 
             // SAFETY: the result is nonnegative and less than or equal to `i32::MAX.isqrt()`.
             // Inform the optimizer about it.
@@ -107,7 +120,8 @@ impl SignedIsqrt for i32 {
 
 impl UnsignedIsqrt for u32 {
     fn isqrt(self) -> Self {
-        let result = (self as f64).sqrt() as Self;
+        let result = (self as f64).sqrt() as u32;
+        // Strangely, `f64::to_int_unchecked` is much slower here on Ryzen 5900X for `u32`.
 
         // SAFETY: the result fits in an integer with half as many bits.
         // Inform the optimizer about it.
@@ -153,7 +167,10 @@ impl SignedIsqrt for i64 {
 
         (self >= 0).then(|| {
             let result = {
-                let result = (self as u64 as f64).sqrt() as u64;
+                let result = (self as u64 as f64).sqrt();
+                // SAFETY: Guaranteed to not be a NaN or an infinity and to, except for the fractional part, be in
+                // `u64` range.
+                let result = unsafe { result.to_int_unchecked::<u64>() };
                 let result_squared = result * result;
                 if (self as u64) < result_squared {
                     result - 1
@@ -214,9 +231,14 @@ impl UnsignedIsqrt for u64 {
         //
         // Thus, the correct output will be the floor of the representative's square root plus -1, 0, or 1.
 
+        // Is there some way to avoid the plus one case based on the distance divergence above?
+
         // Avoid overflows when getting the result squared or the result plus one squared.
         let result = if self < ((1 << 32) - 2) * ((1 << 32) - 2) {
-            let result = (self as f64).sqrt() as Self;
+            let result = (self as f64).sqrt();
+            // SAFETY: Guaranteed to not be a NaN or an infinity and to, except for the fractional part, be in `u64`
+            // range.
+            let result = unsafe { result.to_int_unchecked::<u64>() };
             let result_squared = result * result;
             if self < result_squared {
                 result - 1

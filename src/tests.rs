@@ -268,5 +268,35 @@ macro_rules! tests {
 }
 
 tests!(floating_point; i8 u8, i16 u16, i32 u32, i64 u64, i128 u128);
+tests!(floating_point_and_karatsuba; i8 u8, i16 u16, i32 u32, i64 u64, i128 u128);
 tests!(karatsuba; i8 u8, i16 u16, i32 u32, i64 u64, i128 u128);
 tests!(original; i8 u8, i16 u16, i32 u32, i64 u64, i128 u128);
+//tests!(table; i8 u8, i16 u16, i32 u32, i64 u64, i128 u128);
+//tests!(libgmp; i8 u8, i16 u16, i32 u32, i64 u64, i128 u128);
+
+fn floating_u64_bug_cases() {
+    use crate::floating_point::UnsignedIsqrt;
+    assert_eq!(
+        4_503_599_761_588_224_u64.isqrt(),
+        67_108_864,
+        "`4_503_599_761_588_224.isqrt()` should be `67_108_864`."
+    );
+}
+
+/*#[test]
+fn extended_floating_u64() {
+    use crate::floating_point::UnsignedIsqrt;
+
+    let mut n = 0_u64;
+    for sqrt_n in 0_u64..1 << 32 {
+        assert_eq!(n.isqrt(), sqrt_n, "{n}");
+
+        n += sqrt_n;
+        assert_eq!(n.isqrt(), sqrt_n, "{n}");
+
+        n += sqrt_n;
+        assert_eq!(n.isqrt(), sqrt_n, "{n}");
+
+        n = n.wrapping_add(1);
+    }
+}*/
