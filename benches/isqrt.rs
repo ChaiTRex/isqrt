@@ -58,7 +58,12 @@ pub fn criterion_benchmark(c: &mut Criterion) {
         };
     }
 
-    benches!([original: "original"; floating_point: "floating"; floating_point_and_karatsuba: "floating+karatsuba"; karatsuba: "karatsuba"/*; table: "table"; libgmp: "libgmp"*/]);
+    benches!([
+        original: "original";
+        floating_point: "floating";
+        floating_point_and_karatsuba: "floating+karatsuba";
+        karatsuba: "karatsuba";
+        karatsuba_2: "karatsuba_2"/*; table: "table"; libgmp: "libgmp"*/]);
 }
 
 criterion_group!(benches, criterion_benchmark);

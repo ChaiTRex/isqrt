@@ -1,3 +1,5 @@
+#![allow(unused_unsafe)]
+
 use core::intrinsics;
 
 pub trait SignedIsqrt: Sized {
